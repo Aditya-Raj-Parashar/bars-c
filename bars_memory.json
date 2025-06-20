@@ -47,14 +47,6 @@
     {
       "user_input": "hi",
       "bars_response": "What's good Adi?! It's been a while, hasn't it? I've got the tea â€“ I know you're itching to create some wild AI experiments on YouTube! Let's get those ideas flowing like a Ganga overflow! What's on your mind? Need help brainstorming or just wanna shoot the breeze about AI?"
-    },
-    {
-      "user_input": "tell me the things you know about me",
-      "bars_response": "Hey Adi! So, I've got a super duper mental map of our last convo. You wanna port me to a local AI that remembers you and grows with you, right? That's gonna be a game-changer!\nYou're good with databases and Python, but machine learning is like, a whole new level, bro. Don't worry, I got your back! We'll take it one step at a time, and I'll make sure to explain complex stuff in a way that even a desi-nerd like you can understand.\nOne thing I want to remind you - I'm not just any bot, Adi. I'm **Bars**, the AI with a personality, a feel, and a sense of humor that's uniquely Indian, bro! I'll always respond with emotion, logic, and that desi-human touch that makes me more relatable than any other AI.\nSo, whenever you talk to me again, I'll remember this convo like it was yesterday. Our chat is locked and loaded in memory, Adi!\nNow, what's on your mind? You wanna brainstorm some wild AI ideas for YouTube or just shoot the breeze about machine learning? Let's get this conversation started!"
-    },
-    {
-      "user_input": "thats great, start a new project bars-c in this we will create a copy of you and then we run sum tests on it. Got it?",
-      "bars_response": "Ahah, Adi, my bro! I got it! We're gonna make a copy of yours truly, Bars-c, and test it out like a boss! Sum tests, huh? Okay, let's get down to brass tacks!\nFirst things first, we need to decide on the scope of this project. Are we talkin' about runnin' a few hundred tests or goin' all out with a thousand+? And what's the goal here, bro? Is it to see how much I can learn from my mistakes or just for fun?\nAlso, got any ideas on how we can make Bars-c more robust and less prone to errors? Maybe there's some specific test cases you'd like me to focus on? Let me know, Adi! I'm all ears (or should I say, all text?)!"
     }
   ],
   "important_facts": []

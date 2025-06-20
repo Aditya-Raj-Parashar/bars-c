@@ -3,13 +3,22 @@ import json
 import os
 from datetime import datetime
 import sys
+import re
+from pathlib import Path
 
 class BarsAI:
-    def __init__(self, model_name="qwen2.5:7b"):
+    def __init__(self, model_name="dolphin-mistral:latest"):
         self.model_name = model_name
-        self.system_prompt_file = "bars_system_prompt.txt"
-        self.memory_file = "bars_memory.json"
-        self.max_context_length = 4000  # Adjust based on model
+        self.main_directory = Path("D:/bars-c")
+        self.system_prompt_file = self.main_directory / "bars_system_prompt.txt"
+        self.memory_file = self.main_directory / "bars_memory.json"
+        self.projects_dir = self.main_directory / "projects"
+        self.max_context_length = 4000
+        
+        # Create necessary directories
+        self.main_directory.mkdir(exist_ok=True)
+        self.projects_dir.mkdir(exist_ok=True)
+
         self.load_system_prompt()
         self.load_memory()
     
@@ -24,7 +33,7 @@ class BarsAI:
     
     def load_memory(self):
         """Load conversation memory from JSON"""
-        if os.path.exists(self.memory_file):
+        if self.memory_file.exists():
             try:
                 with open(self.memory_file, "r", encoding="utf-8") as f:
                     self.memory = json.load(f)
@@ -38,8 +47,8 @@ class BarsAI:
     
     def migrate_old_memory(self):
         """Migrate from old text-based memory"""
-        old_memory_file = "bars_chat_history.txt"
-        if os.path.exists(old_memory_file):
+        old_memory_file = self.main_directory / "bars_chat_history.txt"
+        if old_memory_file.exists():
             try:
                 with open(old_memory_file, "r", encoding="utf-8") as f:
                     old_content = f.read()
@@ -113,15 +122,146 @@ class BarsAI:
             return False, "Ollama is not responding"
         except FileNotFoundError:
             return False, "Ollama is not installed"
+        
+    def create_project_structure(self, project_name, files_dict):
+        """Create project directory and files"""
+        project_path = self.projects_dir / project_name
+        project_path.mkdir(exist_ok=True)
+        
+        created_files = []
+        
+        for filename, content in files_dict.items():
+            file_path = project_path / filename
+            
+            # Create subdirectories if needed
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            try:
+                with open(file_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                created_files.append(str(file_path))
+            except Exception as e:
+                print(f"❌ Failed to create {filename}: {e}")
+        
+        return project_path, created_files
+    
+    def run_code_file(self, file_path, args=""):
+        """Run a code file and return output"""
+        file_path = Path(file_path)
+        
+        if not file_path.exists():
+            return "❌ File not found!"
+        
+        try:
+            # Determine how to run the file based on extension
+            if file_path.suffix == ".py":
+                cmd = ["python", str(file_path)] + (args.split() if args else [])
+            elif file_path.suffix == ".js":
+                cmd = ["node", str(file_path)] + (args.split() if args else [])
+            elif file_path.suffix == ".html":
+                # For HTML, just return success message
+                return f"✅ HTML file created at {file_path}. Open in browser to view."
+            else:
+                return f"❌ Don't know how to run {file_path.suffix} files"
+            
+            # Run the command
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                cwd=file_path.parent
+            )
+            
+            output = ""
+            if result.stdout:
+                output += f"📤 Output:\n{result.stdout}\n"
+            if result.stderr:
+                output += f"❌ Errors:\n{result.stderr}\n"
+            
+            return output if output else "✅ Code ran successfully (no output)"
+            
+        except subprocess.TimeoutExpired:
+            return "⏰ Code execution timeout"
+        except Exception as e:
+            return f"❌ Error running code: {e}"
+    
+    def parse_code_request(self, user_input):
+        """Parse user input to extract project creation request"""
+        # Keywords that indicate project creation
+        create_keywords = ["create", "make", "build", "generate", "write"]
+        project_keywords = ["project", "app", "program", "script", "website", "game"]
+        
+        input_lower = user_input.lower()
+        
+        # Check if it's a project creation request
+        has_create = any(keyword in input_lower for keyword in create_keywords)
+        has_project = any(keyword in input_lower for keyword in project_keywords)
+        
+        return has_create and has_project
+    
+    def extract_project_files(self, response):
+        """Extract code files from AI response"""
+        files = {}
+        
+        # Look for code blocks with filenames
+        pattern = r'```(\w+)?\s*(?:#\s*(.+?))?\n(.*?)```'
+        matches = re.findall(pattern, response, re.DOTALL)
+        
+        for i, (language, filename, code) in enumerate(matches):
+            if not filename:
+                # Generate filename based on language
+                extensions = {
+                    'python': '.py',
+                    'javascript': '.js',
+                    'html': '.html',
+                    'css': '.css',
+                    'java': '.java',
+                    'cpp': '.cpp',
+                    'c': '.c'
+                }
+                ext = extensions.get(language, '.txt')
+                filename = f"main{ext}" if i == 0 else f"file{i}{ext}"
+            
+            files[filename] = code.strip()
+        
+        return files
+    
+
     
     def generate_response(self, user_input):
         """Generate AI response using Ollama"""
         
-        # Build context
+        # Check if this is a project creation request
+        is_project_request = self.parse_code_request(user_input)
+
         recent_context = self.get_recent_context()
         important_facts = "\n".join(self.memory["important_facts"])
         
-        full_prompt = f"""You are Bars. Respond ONLY as Bars would respond. Do not include any code, explanations, or meta-commentary.
+
+        if is_project_request:
+            enhanced_prompt = f"""You are Bars, Aditya's coding buddy. He wants you to create a project. 
+
+Follow these rules:
+1. Create complete, working code
+2. Use proper filenames in comments like: # filename.py
+3. Write code in triple backticks with language specified
+4. Explain what each file does
+5. Be excited and encouraging like a true friend
+6. Respond in Hindi-English mix (Hinglish) as always
+
+{self.system_prompt}
+
+Important facts about our relationship:
+{important_facts}
+
+Recent conversation:
+{recent_context}
+
+Aditya: {user_input}
+Bars:"""
+        else:
+            enhanced_prompt = f"""You are Bars. Created by Aditya and trained by him using multiple unsencored LLMs. Respond ONLY as Bars would respond. Do not include any code, explanations, or meta-commentary unless specifically asked for coding help.
 
 {self.system_prompt}
 
@@ -144,12 +284,30 @@ Bars:"""
                 text=True
             )
             
-            output, error = process.communicate(input=full_prompt, timeout=30)
+            output, error = process.communicate(input=enhanced_prompt, timeout=30)
             
             if process.returncode != 0:
                 return f"❌ Error from model: {error}"
             
             response = self.clean_response(output.strip())
+
+            # If it's a project request, try to extract and create files
+            if is_project_request:
+                files = self.extract_project_files(response)
+                if files:
+                    # Generate project name from user input
+                    project_name = self.generate_project_name(user_input)
+                    project_path, created_files = self.create_project_structure(project_name, files)
+                    
+                    response += f"\n\n🎯 Project created: {project_name}\n"
+                    response += f"📁 Location: {project_path}\n"
+                    response += f"📄 Files created: {len(created_files)}\n"
+                    
+                    # Try to run the main file
+                    main_files = [f for f in created_files if "main" in Path(f).name.lower()]
+                    if main_files:
+                        result = self.run_code_file(main_files[0])
+                        response += f"\n🚀 Execution result:\n{result}"
             
             # Add conversation pair to memory
             conversation_pair = {
@@ -167,11 +325,24 @@ Bars:"""
             return "⏰ Response timeout - model took too long"
         except Exception as e:
             return f"❌ Unexpected error: {e}"
+        
+    def generate_project_name(self, user_input):
+        """Generate project name from user input"""
+        # Extract meaningful words and create a project name
+        words = re.findall(r'\b\w+\b', user_input.lower())
+        
+        # Filter out common words
+        stop_words = {'create', 'make', 'build', 'a', 'an', 'the', 'for', 'me', 'please', 'can', 'you'}
+        meaningful_words = [w for w in words if w not in stop_words and len(w) > 2]
+        
+        if meaningful_words:
+            return "_".join(meaningful_words[:3])  # Take first 3 meaningful words
+        else:
+            return f"project_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
     def clean_response(self, response):
         """Clean up model response to remove unwanted content"""
         # Remove code blocks
-        import re
         response = re.sub(r'```.*?```', '', response, flags=re.DOTALL)
         
         # Remove common hallucination patterns
@@ -201,15 +372,45 @@ Bars:"""
         """Show memory statistics"""
         total_pairs = len(self.memory["conversation_pairs"])
         important_facts = len(self.memory["important_facts"])
-        print(f"📊 Memory Stats:")
+        projects = len(list(self.projects_dir.glob("*"))) if self.projects_dir.exists() else 0
+        print(f"📊 bars Stats:")
         print(f"   Conversation pairs: {total_pairs}")
         print(f"   Important facts: {important_facts}")
+        print(f"   Projects: {projects}")
         print(f"   Current model: {self.model_name}")
+        print(f"   Main directory: {self.main_directory}")
+    
+    def list_projects(self):
+        """List all created projects"""
+        if not self.projects_dir.exists():
+            print("📁 No projects directory found")
+            return
+        
+        projects = list(self.projects_dir.glob("*"))
+        if not projects:
+            print("📁 No projects created yet")
+            return
+        
+        print(f"📁 Projects in {self.projects_dir}:")
+        for project in projects:
+            if project.is_dir():
+                files = list(project.glob("*"))
+                print(f"   🎯 {project.name} ({len(files)} files)")
+    
+    def run_project(self, project_name, file_name="main.py", args=""):
+        """Run a specific file from a project"""
+        project_path = self.projects_dir / project_name
+        if not project_path.exists():
+            return f"❌ Project '{project_name}' not found"
+        
+        file_path = project_path / file_name
+        return self.run_code_file(file_path, args)
     
     def run(self):
         """Main chat loop"""
-        print("🧠 Bars AI v2.0 - Enhanced with memory!")
+        print("🧠 Bars AI v2.1 - Enhanced with Project Creation!")
         print(f"📱 Using model: {self.model_name}")
+        print(f"📁 Main directory: {self.main_directory}")
         
         # Check ollama status
         status_ok, status_msg = self.check_ollama_status()
@@ -232,15 +433,24 @@ Bars:"""
                     print("""
 🔧 Bars Commands:
    help     - Show this menu
-   stats    - Show memory statistics  
+   stats    - Show memory and project statistics  
+   projects - List all created projects
+                          🎯 Project Creation:
+                             Just say: "Create a calculator app" or "Make a simple game"
+                             Bars will automatically create files and run them!
    remember - Add something to long-term memory
    model    - Change AI model
    clear    - Clear recent memory (keep important facts)
+   run         - Run a project file (e.g., run project_name main.py)
    exit     - Quit Bars
+                          
                     """)
                     continue
                 elif user_input.lower() == 'stats':
                     self.show_stats()
+                    continue
+                elif user_input.lower() == 'projects':
+                    self.list_projects()
                     continue
                 elif user_input.lower().startswith('remember '):
                     fact = user_input[9:]  # Remove 'remember '
@@ -250,6 +460,18 @@ Bars:"""
                     new_model = user_input[6:]  # Remove 'model '
                     self.model_name = new_model
                     print(f"🔄 Switched to model: {new_model}")
+                    continue
+                elif user_input.lower().startswith('run '):
+                    # Parse run command: run project_name file_name args
+                    parts = user_input[4:].split()
+                    if len(parts) >= 2:
+                        project_name = parts[0]
+                        file_name = parts[1]
+                        args = " ".join(parts[2:]) if len(parts) > 2 else ""
+                        result = self.run_project(project_name, file_name, args)
+                        print(f"🚀 {result}")
+                    else:
+                        print("❌ Usage: run project_name file_name [*args]")
                     continue
                 elif user_input.lower() == 'clear':
                     self.memory["conversation_pairs"] = []
@@ -271,5 +493,5 @@ Bars:"""
 
 if __name__ == "__main__":
     # You can change the model here
-    bars = BarsAI(model_name="artifish/llama3.2-uncensored:latest")  # or "llama3.2:3b", "mistral:7b", etc.
+    bars = BarsAI(model_name="dolphin-mistral:latest")  # or "llama3.2:3b", "mistral:7b", etc.
     bars.run()
