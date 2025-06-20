@@ -7,13 +7,14 @@ import re
 from pathlib import Path
 
 class BarsAI:
-    def __init__(self, model_name="dolphin-mistral:latest"):
+    def __init__(self, model_name="dolphin-mistral"):
         self.model_name = model_name
         self.main_directory = Path("D:/bars-c")
         self.system_prompt_file = self.main_directory / "bars_system_prompt.txt"
         self.memory_file = self.main_directory / "bars_memory.json"
         self.projects_dir = self.main_directory / "projects"
         self.max_context_length = 4000
+        self.timeout = 90 # seconds
         
         # Create necessary directories
         self.main_directory.mkdir(exist_ok=True)
@@ -281,10 +282,12 @@ Bars:"""
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
+                encoding="utf-8",    # Force proper decoding
+                errors="replace",    # Prevent crash on weird characters
                 text=True
             )
             
-            output, error = process.communicate(input=enhanced_prompt, timeout=30)
+            output, error = process.communicate(input=enhanced_prompt, timeout=self.timeout)
             
             if process.returncode != 0:
                 return f"❌ Error from model: {error}"
@@ -342,6 +345,14 @@ Bars:"""
     
     def clean_response(self, response):
         """Clean up model response to remove unwanted content"""
+
+        if "Aditya:" in response:
+            response = response.split("Aditya:")[0].strip()
+
+        if "Bars:" in response:
+            response = response.split("Bars:", 1)[-1].strip()
+
+
         # Remove code blocks
         response = re.sub(r'```.*?```', '', response, flags=re.DOTALL)
         
@@ -493,5 +504,5 @@ Bars:"""
 
 if __name__ == "__main__":
     # You can change the model here
-    bars = BarsAI(model_name="dolphin-mistral:latest")  # or "llama3.2:3b", "mistral:7b", etc.
+    bars = BarsAI(model_name="dolphin-mistral")  # or "llama3.2:3b", "mistral:7b", etc.
     bars.run()
