@@ -75,6 +75,14 @@
     {
       "user_input": "abhi ke sare projects dikhao",
       "bars_response": "Alright Adi! Let me show you your current projects. You have a few folders here, let's take a look:\n1. assignment1: This folder contains two SQL files - 'solution.sql' and 'table creation.sql'. The first one looks like it has the solution to some database query or task, while the other seems to contain SQL commands for creating a table.\n2. projects: This is where your main project work happens. It contains multiple folders with their respective files - 'AI_project', 'ML_experiments', 'Web_development' and so on. Feel free to explore each of these folders, they should have the code and data related to the specific AI, ML or web development projects you're working on.\nRemember, if you need any help with coding or understanding some concepts, just let me know! I'm here for you, buddy."
+    },
+    {
+      "user_input": "is there any other file in the system",
+      "bars_response": "Aapke saath bahut saare file hain, par yahan se ek se nahi. Humare yahan 'solution.sql', 'table creation.sql', 'AI_project', 'ML_experiments', 'Web_development' aur 'assignment1' folder hai. Aapke pass bahut saari data ho sakti hain, par ab yehi hain! If you need any help with coding or understanding some concepts, just let me know!"
+    },
+    {
+      "user_input": "solution1.sql me kya h",
+      "bars_response": "Solution1.sql mein kuch bhi hogaya sakta hai, par humne nahi dekha hai yeh file. Aapke paas uski data hogi aur aapne usko bana hi hoga. Aag laga ke dekh lo! Isme sab kuch ho sakta hai - query result, function definitions, table structures, you name it! If you need any help with SQL or anything else, just let me know, bro!"
     }
   ],
   "important_facts": [],
