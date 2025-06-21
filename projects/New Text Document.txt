@@ -1,0 +1,67 @@
+Please follow the steps below to establish a connection to the SQL Server using SQL Server Management Studio (SSMS):
+
+
+
+Open Command Prompt:
+
+
+
+Press Win + R, type cmd, and press Enter.
+
+
+
+Find Your Hostname:
+
+
+
+In the Command Prompt window, type hostname
+
+
+
+Press Enter.
+
+
+
+Copy the hostname displayed.
+
+
+
+Open SSMS and Connect:
+
+
+
+Launch SQL Server Management Studio (SSMS).
+
+
+
+In the Server name field, enter the following format:
+
+
+
+[your-hostname]\[instance-name]
+
+Example: MYPC123\SQLEXPRESS
+
+
+
+Authentication Mode:
+
+
+
+Choose Windows Authentication from the dropdown.
+
+
+
+Trust Server Certificate:
+
+
+
+Click on Options (if not already visible).
+
+
+
+Check the box "Trust server certificate".
+
+
+
+Click Connect.

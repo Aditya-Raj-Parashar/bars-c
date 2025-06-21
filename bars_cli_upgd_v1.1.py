@@ -22,6 +22,8 @@ class BarsAI:
 
         self.load_system_prompt()
         self.load_memory()
+        self.scan_system_files()
+
     
     def load_system_prompt(self):
         """Load the system prompt"""
@@ -32,6 +34,30 @@ class BarsAI:
             print(f"❌ {self.system_prompt_file} not found!")
             sys.exit(1)
     
+    def scan_system_files(self, base_path=None):
+        """Scan local project folders and summarize files"""
+        if base_path is None:
+            base_path = self.projects_dir
+
+        snapshot = []
+
+        for folder in base_path.glob("**/*"):
+            if folder.is_dir():
+                contents = [f.name for f in folder.glob("*") if f.is_file()]
+                if contents:
+                    snapshot.append({
+                        "folder": str(folder.relative_to(self.main_directory)),
+                        "files": contents
+                    })
+
+        if snapshot:
+            self.memory["system_snapshot"] = snapshot
+            print(f"✅ System snapshot updated with {len(snapshot)} folders.")
+        else:
+            print("⚠️ No folders with files found in the projects directory.")
+
+        self.save_memory()
+
     def load_memory(self):
         """Load conversation memory from JSON"""
         if self.memory_file.exists():
@@ -237,7 +263,20 @@ class BarsAI:
         is_project_request = self.parse_code_request(user_input)
 
         recent_context = self.get_recent_context()
+
+        
         important_facts = "\n".join(self.memory["important_facts"])
+
+        # System awareness:
+        if "system_snapshot" in self.memory and self.memory["system_snapshot"]:
+            snapshot_lines = []
+            for item in self.memory["system_snapshot"]:
+                files = ", ".join(item['files']) if item['files'] else "No files"
+                snapshot_lines.append(f"📁 Folder: {item['folder']} has files: {files}")
+            important_facts += "\n\n📂 System Snapshot:\n" + "\n".join(snapshot_lines)
+        else:
+            important_facts += "\n\n⚠️ Bars couldn't load your system snapshot."
+
         
 
         if is_project_request:
@@ -452,7 +491,8 @@ Bars:"""
    remember - Add something to long-term memory
    model    - Change AI model
    clear    - Clear recent memory (keep important facts)
-   run         - Run a project file (e.g., run project_name main.py)
+   run      - Run a project file (e.g., run project_name main.py)
+   rescan   - Rescan the main directory for new projects
    exit     - Quit Bars
                           
                     """)
@@ -488,6 +528,10 @@ Bars:"""
                     self.memory["conversation_pairs"] = []
                     self.save_memory()
                     print("🗑️  Cleared recent conversations")
+                    continue
+                elif user_input.lower() == 'rescan':
+                    self.scan_system_files()
+                    print("🔄 Rescanned your project folders.")
                     continue
                 elif not user_input:
                     continue
